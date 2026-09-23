@@ -122,7 +122,7 @@
         players[key].room = roomId;
 
         // 訂閱題目廣播
-        client.subscribe('/topic/room' + roomId + '/quiz', function (message) {
+        client.subscribe('/topic/room/' + roomId + '/quiz', function (message) {
             const quiz = JSON.parse(message.body);
             log(key, `❓ <b>收到新題目！</b><br/>題目: ${quiz.title}<br/>選項: ${quiz.options ? quiz.options.join(', ') : '無選項'}`);
         });

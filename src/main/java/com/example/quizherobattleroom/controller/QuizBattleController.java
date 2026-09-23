@@ -101,7 +101,7 @@ public class QuizBattleController {
                 "serverTimestamp", serverTimestamp // 帶上發題時間戳
         );
 
-        messagingTemplate.convertAndSend("/topic/room"+roomId + "/quiz", Optional.of(quizPayload));
+        messagingTemplate.convertAndSend("/topic/room/"+roomId + "/quiz", Optional.of(quizPayload));
     }
 
     /**
