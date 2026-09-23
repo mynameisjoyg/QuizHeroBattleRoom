@@ -113,7 +113,8 @@ public class QuizBattleController {
         if (room == null) return;
 
         long receiveTimestamp = System.currentTimeMillis(); // 後端收到答案的毫秒時間戳
-        String playerId = (principal != null) ? principal.getName() : "UnknownPlayer";
+        // ✅ 使用前端傳過來的 playerId 作為 playerId
+        String playerId = answer.getPlayerId();
 
         // 使用 AtomicBoolean 確保「第一個到達後端的請求」獲得搶答權
         if (room.lockAnswer()) {

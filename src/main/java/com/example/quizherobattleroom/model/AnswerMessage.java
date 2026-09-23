@@ -1,6 +1,7 @@
 package com.example.quizherobattleroom.model;
 
 public class AnswerMessage {
+    private String playerId; // 👈 必須與前端 @SerializedName("playerId") 一致！
     private String questionId;      // 當前搶答的題目 ID
     private String selectedOption;  // 玩家選擇的答案（例如："玉山" 或 "A"）
     private long clientTimestamp;   // (可選) 玩家在手機上按下按鈕的毫秒時間戳
@@ -9,13 +10,23 @@ public class AnswerMessage {
     public AnswerMessage() {
     }
 
-    public AnswerMessage(String questionId, String selectedOption, long clientTimestamp) {
+    public AnswerMessage(String playerId, String questionId, String selectedOption, long clientTimestamp) {
+        this.playerId = playerId;
         this.questionId = questionId;
         this.selectedOption = selectedOption;
         this.clientTimestamp = clientTimestamp;
     }
 
     // Getters and Setters
+
+    public String getPlayerId() {
+        return playerId;
+    }
+
+    public void setPlayerId(String playerId) {
+        this.playerId = playerId;
+    }
+
     public String getQuestionId() {
         return questionId;
     }
