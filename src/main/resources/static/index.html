@@ -85,8 +85,7 @@
 
                 // 🌟 連線成功後，立刻訂閱個人的配對通知頻道
                 log(key, '✅ 連線成功後，立刻訂閱個人的配對通知頻道！');
-                //stompClient.subscribe('/topic/matchmaking', function (message) {
-                stompClient.subscribe('/topic/room/0956520537', function (message) {
+                stompClient.subscribe('/topic/matchmaking', function (message) {
                     const data = JSON.parse(message.body);
                     // 判斷此配對訊息是否包含目前玩家
                     log(key, '✅ 判斷此配對訊息是否包含目前玩家');
@@ -123,8 +122,7 @@
         players[key].room = roomId;
 
         // 訂閱題目廣播
-        //client.subscribe('/topic/room/0956520537' + roomId + '/quiz', function (message) {
-        client.subscribe('/topic/room/0956520537' + '/quiz', function (message) {
+        client.subscribe('/topic/room' + roomId + '/quiz', function (message) {
             const quiz = JSON.parse(message.body);
             log(key, `❓ <b>收到新題目！</b><br/>題目: ${quiz.title}<br/>選項: ${quiz.options ? quiz.options.join(', ') : '無選項'}`);
         });
@@ -132,7 +130,7 @@
         // 訂閱搶答結果廣播
         //client.subscribe('/topic/room/' + roomId + '/result', function (message) {
         //client.subscribe('/topic/room/' + roomId + '/result', function (message) {
-        client.subscribe('/topic/room/0956520537' + '/result', function (message) {
+        client.subscribe('/topic/room'+roomId + '/result', function (message) {
             const res = JSON.parse(message.body);
             if (res.type === 'ANSWER_RESULT' || res.winnerId) {
                 const isMe = res.winnerId === players[key].id;

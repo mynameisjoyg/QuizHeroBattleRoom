@@ -69,7 +69,7 @@ public class QuizBattleController {
 
                 // 廣播給配對到的玩家頻道
                 //messagingTemplate.convertAndSend("/topic/room/" + roomId, Optional.of(matchPayload));
-                messagingTemplate.convertAndSend("/topic/room/0956520537", Optional.of(matchPayload));
+                messagingTemplate.convertAndSend("/topic/matchmaking", Optional.of(matchPayload));
 
 
                 // 配對成功 3 秒後發送第一題
@@ -101,7 +101,7 @@ public class QuizBattleController {
                 "serverTimestamp", serverTimestamp // 帶上發題時間戳
         );
 
-        messagingTemplate.convertAndSend("/topic/room/0956520537" + "/quiz", Optional.of(quizPayload));
+        messagingTemplate.convertAndSend("/topic/room"+roomId + "/quiz", Optional.of(quizPayload));
     }
 
     /**
