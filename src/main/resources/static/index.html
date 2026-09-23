@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <title>QuizHero WebSocket 1v1 即時對戰測試</title>
+    <!-- 引入 SockJS 與 STOMP -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/sockjs-client/1.5.1/sockjs.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/stomp.js/2.3.3/stomp.min.js"></script>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; background-color: #f0f2f5; }
+        .container { display: flex; gap: 20px; }
+        .card { background: white; padding: 15px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); flex: 1; }
+        .log-box { background: #1e1e1e; color: #00ff66; padding: 10px; height: 250px; overflow-y: scroll; font-family: monospace; font-size: 13px; border-radius: 5px; }
+        button { margin: 5px 0; padding: 8px 12px; cursor: pointer; background-color: #007bff; color: white; border: none; border-radius: 4px; }
+        button:hover { background-color: #0056b3; }
+        button:disabled { background-color: #ccc; cursor: not-allowed; }
+        .btn-answer { background-color: #28a745; }
+        .btn-answer:hover { background-color: #218838; }
+    </style>
+</head>
+<body>
+
+<h2>🎮 QuizHero 1v1 對戰即時測試面板</h2>
+<p>提示：你可以點擊下方「自動配對測試」，系統會模擬兩個玩家同時進入配對！</p>
+
+<div style="margin-bottom: 15px;">
+    <button onclick="autoTestMatch()" style="background-color: #e0a800; color: black; font-weight: bold; padding: 10px 15px;">
+        🚀 一鍵啟動：模擬 2 位玩家自動連線與配對
+    </button>
+</div>
+
+<div class="container">
+    <!-- 玩家 A 控制台 -->
+    <div class="card">
+        <h3>玩家 A (Player_A)</h3>
+        <button onclick="connectPlayer('A')">1. 連線</button>
+        <button onclick="requestMatch('A')">2. 請求配對</button>
+        <br/><br/>
+        <div>
+            <button class="btn-answer" onclick="sendAnswer('A', '玉山')">搶答：玉山</button>
+            <button class="btn-answer" onclick="sendAnswer('A', '雪山')">搶答：雪山</button>
+        </div>
+        <h4>訊息日誌：</h4>
+        <div id="logA" class="log-box"></div>
+    </div>
+
+    <!-- 玩家 B 控制台 -->
+    <div class="card">
+        <h3>玩家 B (Player_B)</h3>
+        <button onclick="connectPlayer('B')">1. 連線</button>
+        <button onclick="requestMatch('B')">2. 請求配對</button>
+        <br/><br/>
+        <div>
+            <button class="btn-answer" onclick="sendAnswer('B', '玉山')">搶答：玉山</button>
+            <button class="btn-answer" onclick="sendAnswer('B', '雪山')">搶答：雪山</button>
+        </div>
+        <h4>訊息日誌：</h4>
+        <div id="logB" class="log-box"></div>
+    </div>
+</div>
+
+<script>
+    const players = {
+        'A': { id: 'Player_A', client: null, room: null },
+        'B': { id: 'Player_B', client: null, room: null }
+    };
+
+    function log(key, msg) {
+        const logBox = document.getElementById("log" + key);
+        const time = new Date().toLocaleTimeString();
+        logBox.innerHTML += `[${time}] ${msg}<br/>`;
+        logBox.scrollTop = logBox.scrollHeight;
+    }
+
+    // 1. 連線並預先訂閱個人配對頻道
+    function connectPlayer(key) {
+        return new Promise((resolve, reject) => {
+            const socket = new SockJS('http://localhost:8080/ws-quiz');
+            const stompClient = Stomp.over(socket);
+            stompClient.debug = null; // 關閉冗長的 debug log
+
+            stompClient.connect({}, function (frame) {
+                players[key].client = stompClient;
+                log(key, '✅ 連線成功！');
+
+                // 🌟 連線成功後，立刻訂閱個人的配對通知頻道
+                log(key, '✅ 連線成功後，立刻訂閱個人的配對通知頻道！');
+                //stompClient.subscribe('/topic/matchmaking', function (message) {
+                stompClient.subscribe('/topic/room/0956520537', function (message) {
+                    const data = JSON.parse(message.body);
+                    // 判斷此配對訊息是否包含目前玩家
+                    log(key, '✅ 判斷此配對訊息是否包含目前玩家');
+                    if (data.player1 === players[key].id || data.player2 === players[key].id) {
+                        log(key, '✅ 玩家相同');
+                        handleMatchSuccess(key, data);
+                    }
+                });
+                resolve();
+            }, function (err) {
+                log(key, '❌ 連線失敗: ' + err);
+                reject(err);
+            });
+        });
+    }
+
+    // 2. 請求配對
+    function requestMatch(key) {
+        const player = players[key];
+        if (!player.client) {
+            alert(`請先讓玩家 ${key} 建立連線！`);
+            return;
+        }
+
+        log(key, '🔍 已發送配對請求，等待對手...');
+
+        // 發送配對請求
+        player.client.send("/app/matchmaking", {}, JSON.stringify({ playerId: player.id }));
+    }
+
+    // 當配對成功時處理頻道訂閱
+    function subscribeRoomChannels(key, roomId) {
+        const client = players[key].client;
+        players[key].room = roomId;
+
+        // 訂閱題目廣播
+        //client.subscribe('/topic/room/0956520537' + roomId + '/quiz', function (message) {
+        client.subscribe('/topic/room/0956520537' + '/quiz', function (message) {
+            const quiz = JSON.parse(message.body);
+            log(key, `❓ <b>收到新題目！</b><br/>題目: ${quiz.title}<br/>選項: ${quiz.options ? quiz.options.join(', ') : '無選項'}`);
+        });
+
+        // 訂閱搶答結果廣播
+        //client.subscribe('/topic/room/' + roomId + '/result', function (message) {
+        //client.subscribe('/topic/room/' + roomId + '/result', function (message) {
+        client.subscribe('/topic/room/0956520537' + '/result', function (message) {
+            const res = JSON.parse(message.body);
+            if (res.type === 'ANSWER_RESULT' || res.winnerId) {
+                const isMe = res.winnerId === players[key].id;
+                const tag = isMe ? '🏆 【你贏了！】' : '❌ 【手速太慢！】';
+                log(key, `${tag} 獲勝者: ${res.winnerId} | 反應時間: ${res.reactionTimeMs}ms`);
+            } else {
+                log(key, `⚠️ ${res.message || JSON.stringify(res)}`);
+            }
+        });
+    }
+
+    // 3. 發送搶答
+    function sendAnswer(key, option) {
+        const player = players[key];
+        if (!player.room) {
+            alert(`玩家 ${key} 尚未配對進入房間！`);
+            return;
+        }
+
+        const payload = {
+            playerId: player.id,
+            questionId: "Q_001",
+            selectedOption: option,
+            clientTimestamp: Date.now()
+        };
+
+        player.client.send("/app/room/" + player.room + "/answer", {}, JSON.stringify(payload));
+        log(key, `⚡ 按下搶答：<b>${option}</b>`);
+    }
+
+    // 一鍵自動測試 (拉開連線與請求的微小延遲，確保 STOMP SUBSCRIBE 已生效)
+    async function autoTestMatch() {
+        try {
+            log('A', '🚀 啟動自動測試流程...');
+            log('B', '🚀 啟動自動測試流程...');
+
+            // 步驟 1: 兩位玩家建立連線並完成訂閱
+            await connectPlayer('A');
+            await connectPlayer('B');
+
+            // 緩衝 300ms，確保 WebSocket 訂閱訊息已完全到達伺服器
+            await new Promise(r => setTimeout(r, 300));
+
+            // 步驟 2: 玩家 A 發送配對
+            requestMatch('A');
+
+            // 延遲 500ms 後玩家 B 發送配對
+            setTimeout(() => {
+                requestMatch('B');
+            }, 500);
+
+        } catch (e) {
+            console.error("自動測試異常：", e);
+        }
+    }
+
+    function handleMatchSuccess(key, data) {
+        log(key, `🎉 <b>配對成功！</b> 進入房間: ${data.roomId}`);
+        // 收到配對成功後立刻訂閱該房間的題目與搶答廣播
+        subscribeRoomChannels(key, data.roomId);
+    }
+</script>
+
+
+</body>
+</html>
