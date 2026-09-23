@@ -141,7 +141,8 @@ public class QuizBattleController {
                     "playerId", playerId,
                     "message", "對手搶先一步回答了！"
             );
-            messagingTemplate.convertAndSendToUser(playerId, "/topic/quiz/notifications", failPayload);
+            //messagingTemplate.convertAndSendToUser(playerId, "/topic/quiz/notifications", failPayload);
+            messagingTemplate.convertAndSendToUser(playerId, "/topic/room/" + roomId + "/result", failPayload);
         }
     }
 }

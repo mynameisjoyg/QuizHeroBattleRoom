@@ -130,14 +130,17 @@
         // 訂閱搶答結果廣播
         //client.subscribe('/topic/room/' + roomId + '/result', function (message) {
         //client.subscribe('/topic/room/' + roomId + '/result', function (message) {
-        client.subscribe('/topic/room'+roomId + '/result', function (message) {
+        client.subscribe('/topic/room/'+roomId + '/result', function (message) {
             const res = JSON.parse(message.body);
-            if (res.type === 'ANSWER_RESULT' || res.winnerId) {
-                const isMe = res.winnerId === players[key].id;
-                const tag = isMe ? '🏆 【你贏了！】' : '❌ 【手速太慢！】';
-                log(key, `${tag} 獲勝者: ${res.winnerId} | 反應時間: ${res.reactionTimeMs}ms`);
+            //if (res.type === 'ANSWER_RESULT' || res.winnerId) {
+            if (res.type === 'ANSWER_RESULT') {
+                //const isMe = res.winnerId === players[key].id;
+                //const tag = isMe ? '🏆 【你贏了！】' : '❌ 【手速太慢！】';
+                //log(key, `${tag} 獲勝者: ${res.winnerId} | 反應時間: ${res.reactionTimeMs}ms`);
+                log(key, "獲勝者:" + res.winnerId);
             } else {
-                log(key, `⚠️ ${res.message || JSON.stringify(res)}`);
+                //log(key, `⚠️ ${res.message || JSON.stringify(res)}`);
+                log(key,"")
             }
         });
     }
