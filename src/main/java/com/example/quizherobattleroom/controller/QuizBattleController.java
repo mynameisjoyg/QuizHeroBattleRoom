@@ -101,6 +101,8 @@ public class QuizBattleController {
         // 重置題目狀態與記錄時間戳
         room.resetQuestion(questionId, serverTimestamp);
 
+
+
         Map<String, Object> quizPayload = Map.of(
                 "type", "QUESTION",
                 "questionId", questionId,
