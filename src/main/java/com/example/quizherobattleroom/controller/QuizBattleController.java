@@ -145,5 +145,10 @@ public class QuizBattleController {
             //messagingTemplate.convertAndSendToUser(playerId, "/topic/quiz/notifications", failPayload);
             messagingTemplate.convertAndSendToUser(playerId, "/topic/room/" + roomId + "/result", failPayload);
         }
+        // 答完5 秒後發送下一題
+        CompletableFuture.delayedExecutor(5, TimeUnit.SECONDS).execute(() -> {
+            sendNextQuestion(roomId);
+        });
+
     }
 }

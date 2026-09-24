@@ -75,8 +75,8 @@
     // 1. 連線並預先訂閱個人配對頻道
     function connectPlayer(key) {
         return new Promise((resolve, reject) => {
-            //const socket = new SockJS('http://localhost:8080/ws-quiz');
-            const socket = new SockJS('https://quizherobattleroom.onrender.com/ws-quiz');
+            const socket = new SockJS('http://localhost:8080/ws-quiz');
+            //const socket = new SockJS('https://quizherobattleroom.onrender.com/ws-quiz');
             const stompClient = Stomp.over(socket);
             stompClient.debug = null; // 關閉冗長的 debug log
 
