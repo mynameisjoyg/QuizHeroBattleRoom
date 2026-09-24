@@ -41,9 +41,12 @@ public class QuizBattleController {
         String playerId = (request != null && request.getPlayerId() != null && !request.getPlayerId().isBlank())
                 ? request.getPlayerId()
                 : "Player_" + UUID.randomUUID().toString().substring(0, 5);
+        String subject = (request != null && request.getPlayerId() != null)? request.getSubject():"English";
+        String volume = (request != null && request.getVolume() != null)? request.getVolume():"1";
+        String chapter = (request != null && request.getChapter() != null)? request.getChapter():"1";
 
         System.out.println("--------------------------------------------------");
-        System.out.println("📩 [後端收到配對請求] 玩家 ID: " + playerId);
+        System.out.println("📩 [後端收到配對請求] 玩家 ID: " + playerId + ", subject="+subject+", volume="+volume+", chapter="+chapter);
 
         synchronized (matchQueue) {
             if (!matchQueue.contains(playerId)) {
