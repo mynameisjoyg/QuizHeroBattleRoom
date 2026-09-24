@@ -9,51 +9,47 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.io.ClassPathResource;
 
-import javax.annotation.PostConstruct;
-import java.io.FileInputStream;
-import java.io.IOException;
+import java.io.ByteArrayInputStream;
 import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 
 @Configuration
 public class FirebaseConfig {
 
-    @PostConstruct
-    public void init() {
-        try {
-            // 讀取 resources 目錄下的 Firebase 私鑰 JSON 檔
-            InputStream serviceAccount = getClass().getClassLoader()
-                    .getResourceAsStream("serviceAccountKey.json");
-
-            if (serviceAccount == null) {
-                throw new RuntimeException("找不到 serviceAccountKey.json 金鑰檔案！");
-            }
-
-            FirebaseOptions options = FirebaseOptions.builder()
-                    .setCredentials(GoogleCredentials.fromStream(serviceAccount))
-                    .build();
-
-            if (FirebaseApp.getApps().isEmpty()) {
-                FirebaseApp.initializeApp(options);
-            }
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-    }
-
     @Bean
-    public Firestore getFirestore() throws IOException {
-        // 1. 檢查 FirebaseApp 是否已經建立過（避免重複初始化）
-        if (FirebaseApp.getApps().isEmpty()) {
-            FileInputStream serviceAccount =
-                    new FileInputStream("src/main/resources/serviceAccountKey.json");
+    public Firestore firestore() throws Exception {
+        InputStream serviceAccountStream;
 
-            FirebaseOptions options = new FirebaseOptions.Builder()
-                    .setCredentials(GoogleCredentials.fromStream(serviceAccount))
-                    .build();
+        // 1. 優先從系統環境變數讀取 JSON 字串
+        String firebaseConfigEnv = System.getenv("FIREBASE_CONFIG_JSON");
 
-            FirebaseApp.initializeApp(options);
-
+        if (firebaseConfigEnv != null && !firebaseConfigEnv.trim().isEmpty()) {
+            // 將環境變數中的 JSON 字串轉為 InputStream
+            serviceAccountStream = new ByteArrayInputStream(
+                    firebaseConfigEnv.getBytes(StandardCharsets.UTF_8)
+            );
+        } else {
+            // 2. 備用方案：若無環境變數，讀取本地 src/main/resources/serviceAccountKey.json
+            ClassPathResource resource = new ClassPathResource("serviceAccountKey.json");
+            if (resource.exists()) {
+                serviceAccountStream = resource.getInputStream();
+            } else {
+                throw new IllegalStateException(
+                        "未找到 Firebase 憑證！請設定 FIREBASE_CONFIG_JSON 環境變數，或於 resources 提供 serviceAccountKey.json"
+                );
+            }
         }
+
+        // 3. 初始化 FirebaseApp
+        FirebaseOptions options = FirebaseOptions.builder()
+                .setCredentials(GoogleCredentials.fromStream(serviceAccountStream))
+                .build();
+
+        if (FirebaseApp.getApps().isEmpty()) {
+            FirebaseApp.initializeApp(options);
+        }
+
+        // 4. 回傳 Firestore 實例
         return FirestoreClient.getFirestore();
     }
 }
