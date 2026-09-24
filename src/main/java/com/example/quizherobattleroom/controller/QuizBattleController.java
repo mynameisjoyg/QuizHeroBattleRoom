@@ -31,11 +31,6 @@ public class QuizBattleController {
     // 管理活躍中的對戰房間
     private final ConcurrentHashMap<String, GameRoom> activeRooms = new ConcurrentHashMap<>();
 
-    private String playerId = "";
-    private String subject = "English";
-    private String volume = "1";
-    private String chapter = "1";
-
     /**
      * 1. 玩家請求配對 (改為傳入 MatchRequest DTO)
      */
@@ -43,12 +38,12 @@ public class QuizBattleController {
     public void processMatchmaking(@Payload MatchRequest request) {
         System.out.println("JOYG: processMatchmaking");
         // 從前端傳送的 JSON 讀取 playerId (防呆處理：若為 null 則自動給予預設 ID)
-        playerId = (request != null && request.getPlayerId() != null && !request.getPlayerId().isBlank())
+        String playerId = (request != null && request.getPlayerId() != null && !request.getPlayerId().isBlank())
                 ? request.getPlayerId()
                 : "Player_" + UUID.randomUUID().toString().substring(0, 5);
-        subject = (request != null && request.getPlayerId() != null)? request.getSubject():"English";
-        volume = (request != null && request.getVolume() != null)? request.getVolume():"1";
-        chapter = (request != null && request.getChapter() != null)? request.getChapter():"1";
+        String subject = (request != null && request.getPlayerId() != null)? request.getSubject():"English";
+        String volume = (request != null && request.getVolume() != null)? request.getVolume():"1";
+        String chapter = (request != null && request.getChapter() != null)? request.getChapter():"1";
 
         System.out.println("--------------------------------------------------");
         System.out.println("📩 [後端收到配對請求] 玩家 ID: " + playerId + ", subject="+subject+", volume="+volume+", chapter="+chapter);
@@ -82,7 +77,7 @@ public class QuizBattleController {
 
                 // 配對成功 3 秒後發送第一題
                 CompletableFuture.delayedExecutor(3, TimeUnit.SECONDS).execute(() -> {
-                    sendNextQuestion(roomId, subject, volume, chapter);
+                    sendNextQuestion(roomId);
                 });
             }
         }
@@ -91,7 +86,7 @@ public class QuizBattleController {
     /**
      * 2. 發送題目 (帶有伺服器毫秒時間戳)
      */
-    private void sendNextQuestion(String roomId, String subject, String volume, String chapter) {
+    private void sendNextQuestion(String roomId) {
         GameRoom room = activeRooms.get(roomId);
         if (room == null) return;
 
@@ -155,7 +150,7 @@ public class QuizBattleController {
         }
         // 答完5 秒後發送下一題
         CompletableFuture.delayedExecutor(5, TimeUnit.SECONDS).execute(() -> {
-            sendNextQuestion(roomId, this.subject, this.volume, this.chapter);
+            sendNextQuestion(roomId);
         });
 
     }
