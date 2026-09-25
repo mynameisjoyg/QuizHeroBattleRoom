@@ -3,6 +3,14 @@ package com.example.quizherobattleroom.controller;
 import com.example.quizherobattleroom.dto.MatchRequest; // 💡 引入你的 MatchRequest DTO
 import com.example.quizherobattleroom.model.AnswerMessage;
 import com.example.quizherobattleroom.model.GameRoom;
+import com.google.api.core.ApiFuture;
+import com.google.auth.oauth2.GoogleCredentials;
+import com.google.cloud.firestore.Firestore;
+import com.google.cloud.firestore.QueryDocumentSnapshot;
+import com.google.cloud.firestore.QuerySnapshot;
+import com.google.firebase.FirebaseApp;
+import com.google.firebase.FirebaseOptions;
+import com.google.firebase.cloud.FirestoreClient;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.messaging.handler.annotation.DestinationVariable;
 import org.springframework.messaging.handler.annotation.MessageMapping;
@@ -10,15 +18,13 @@ import org.springframework.messaging.handler.annotation.Payload;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Controller;
 
+import java.io.FileInputStream;
+import java.io.InputStream;
 import java.security.Principal;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.UUID;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.concurrent.TimeUnit;
+import java.util.*;
+import java.util.concurrent.*;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 @Controller
 public class QuizBattleController {
@@ -82,7 +88,13 @@ public class QuizBattleController {
 
                 // 配對成功 3 秒後發送第一題
                 CompletableFuture.delayedExecutor(3, TimeUnit.SECONDS).execute(() -> {
-                    sendNextQuestion(roomId, subject, volume, chapter);
+                    try {
+                        sendNextQuestion(roomId, subject, volume, chapter);
+                    } catch (ExecutionException e) {
+                        throw new RuntimeException(e);
+                    } catch (InterruptedException e) {
+                        throw new RuntimeException(e);
+                    }
                 });
             }
         }
@@ -91,7 +103,7 @@ public class QuizBattleController {
     /**
      * 2. 發送題目 (帶有伺服器毫秒時間戳)
      */
-    private void sendNextQuestion(String roomId, String subject, String volume, String chapter) {
+    private void sendNextQuestion(String roomId, String subject, String volume, String chapter) throws ExecutionException, InterruptedException {
         GameRoom room = activeRooms.get(roomId);
         if (room == null) return;
 
@@ -102,12 +114,93 @@ public class QuizBattleController {
         room.resetQuestion(questionId, serverTimestamp);
 
 
+        //////////////取得題庫
+        Firestore db;
+        try {
+            // 1. 載入憑證檔 (請確保路徑正確，或改用 ClassLoader 讀取 resources)
+            InputStream serviceAccount = new FileInputStream("src/main/resources/serviceAccountKey.json");
+
+            // 2. 設定 FirebaseOptions
+            FirebaseOptions options = FirebaseOptions.builder()
+                    .setCredentials(GoogleCredentials.fromStream(serviceAccount))
+                    .build();
+
+            // 3. 避免重複初始化 (若 FirebaseApp 尚未初始化才執行)
+            if (FirebaseApp.getApps().isEmpty()) {
+                FirebaseApp.initializeApp(options);
+            }
+
+            // 4. 取得 Firestore 實例
+            db = FirestoreClient.getFirestore();
+
+        } catch (Exception e) {
+            throw new RuntimeException("初始化 Firestore 失敗: " + e.getMessage(), e);
+        }
+        // 1. 發起非同步查詢，獲取 ApiFuture
+        ApiFuture<QuerySnapshot> future = db.collection("English_Quiz").get();
+
+        // 2. 呼叫 .get() 阻塞等待並取得 QuerySnapshot
+        QuerySnapshot querySnapshot = future.get();
+
+        // 3. 取得所有 DocumentSnapshot 清單
+        List<QueryDocumentSnapshot> documents = querySnapshot.getDocuments();
+
+        if (documents.isEmpty()) {
+            System.out.println("No questions found in 'English' collection.");
+            return;
+        }
+
+        // 4.1 取出第一個 document 的資料 (如你原本寫法的 document[0])
+        QueryDocumentSnapshot firstDocument = documents.get(0);
+
+        // 安全取得欄位字串 (使用 getString 可避免 NPE 或 toString 轉型錯誤)
+        //String id = firstDocument.getString("id");
+        String id = firstDocument.getLong("id").toString();
+        String question = firstDocument.getString("question");
+        String answer = firstDocument.getString("answer");
+
+        System.out.println("=== 第一題 ===");
+        System.out.println("id: " + id);
+        System.out.println("Question: " + question);
+        System.out.println("Answer: " + answer);
+
+        String fullQuestion = question;
+
+        // 1. 擷取選項
+        Pattern optionPattern = Pattern.compile("\\([A-D]\\)\\s*[^\\(\\)]+");
+        Matcher matcher = optionPattern.matcher(fullQuestion);
+
+        List<String> options = new ArrayList<>();
+        int firstOptionIndex = -1;
+
+        while (matcher.find()) {
+            if (firstOptionIndex == -1) {
+                firstOptionIndex = matcher.start(); // 記錄第一個選項 (A) 開始的位置
+            }
+            options.add(matcher.group().trim());
+        }
+
+        // 2. 擷取不含選項的題目主幹
+        String stem = (firstOptionIndex != -1) ? fullQuestion.substring(0, firstOptionIndex).trim() : fullQuestion.trim();
+
+        String optionA = options.get(0);
+        String optionB = options.get(1);
+        String optionC = options.get(2);
+        String optionD = options.get(3);
+
+        // 輸出結果
+        System.out.println("stem = " + stem);
+        System.out.println("optionA = " + optionA);
+        System.out.println("optionB = " + optionB);
+        System.out.println("optionC = " + optionC);
+        System.out.println("optionD = " + optionD);
+        //////////////取得題庫
 
         Map<String, Object> quizPayload = Map.of(
                 "type", "QUESTION",
-                "questionId", questionId,
-                "title", "台灣最高的山是什麼山？",
-                "options", List.of("玉山", "雪山", "陽明山", "阿里山"),
+                "questionId", id,
+                "title", stem,
+                "options", List.of(optionA, optionB, optionC, optionD),
                 "serverTimestamp", serverTimestamp // 帶上發題時間戳
         );
 
@@ -157,7 +250,13 @@ public class QuizBattleController {
         }
         // 答完5 秒後發送下一題
         CompletableFuture.delayedExecutor(5, TimeUnit.SECONDS).execute(() -> {
-            sendNextQuestion(roomId, this.subject, this.volume, this.chapter);
+            try {
+                sendNextQuestion(roomId, this.subject, this.volume, this.chapter);
+            } catch (ExecutionException e) {
+                throw new RuntimeException(e);
+            } catch (InterruptedException e) {
+                throw new RuntimeException(e);
+            }
         });
 
     }
