@@ -154,7 +154,8 @@ public class QuizBattleController {
         }
 
         // 4.1 取出第一個 document 的資料 (如你原本寫法的 document[0])
-        QueryDocumentSnapshot firstDocument = documents.get(0);
+        Random random = new Random();
+        QueryDocumentSnapshot firstDocument = documents.get(random.nextInt(documents.size()) + 0);
 
         // 安全取得欄位字串 (使用 getString 可避免 NPE 或 toString 轉型錯誤)
         //String id = firstDocument.getString("id");
