@@ -41,6 +41,9 @@ public class QuizBattleController {
     private String subject = "English";
     private String volume = "1";
     private String chapter = "1";
+    private String id = "";
+    private String question = "";
+    private String correctAnswer ="";
 
     /**
      * 1. 玩家請求配對 (改為傳入 MatchRequest DTO)
@@ -155,14 +158,14 @@ public class QuizBattleController {
 
         // 安全取得欄位字串 (使用 getString 可避免 NPE 或 toString 轉型錯誤)
         //String id = firstDocument.getString("id");
-        String id = firstDocument.getLong("id").toString();
-        String question = firstDocument.getString("question");
-        String answer = firstDocument.getString("answer");
+        id = firstDocument.getLong("id").toString();
+        question = firstDocument.getString("question");
+        correctAnswer = firstDocument.getString("answer");
 
         System.out.println("=== 第一題 ===");
         System.out.println("id: " + id);
         System.out.println("Question: " + question);
-        System.out.println("Answer: " + answer);
+        System.out.println("Answer: " + correctAnswer);
 
         String fullQuestion = question;
 
@@ -224,7 +227,8 @@ public class QuizBattleController {
             // 計算反應時間 (從發題到後端收到搶答的毫秒數)
             long reactionTimeMs = receiveTimestamp - room.getQuestionSentTimestamp();
 
-            boolean isCorrect = "玉山".equals(answer.getSelectedOption()); // 驗證答案
+            boolean isCorrect = correctAnswer.equals(answer.getSelectedOption()); // 驗證答案
+            System.out.println("JOYG: correctAnswer="+correctAnswer+", answer.getSelectedOption()="+ answer.getSelectedOption()+", isCorrect="+isCorrect);
 
             Map<String, Object> resultPayload = Map.of(
                     "type", "ANSWER_RESULT",
