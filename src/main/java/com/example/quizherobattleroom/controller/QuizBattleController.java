@@ -1,5 +1,6 @@
 package com.example.quizherobattleroom.controller;
 
+import com.example.quizherobattleroom.dto.JoinMessage;
 import com.example.quizherobattleroom.dto.MatchRequest; // 💡 引入你的 MatchRequest DTO
 import com.example.quizherobattleroom.model.AnswerMessage;
 import com.example.quizherobattleroom.model.GameRoom;
@@ -15,6 +16,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.messaging.handler.annotation.DestinationVariable;
 import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.handler.annotation.Payload;
+import org.springframework.messaging.simp.SimpMessageHeaderAccessor;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Controller;
 
@@ -26,6 +28,9 @@ import java.util.concurrent.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import org.springframework.context.event.EventListener;
+import org.springframework.web.socket.messaging.SessionDisconnectEvent;
+
 @Controller
 public class QuizBattleController {
 
@@ -36,6 +41,8 @@ public class QuizBattleController {
     private final ConcurrentLinkedQueue<String> matchQueue = new ConcurrentLinkedQueue<>();
     // 管理活躍中的對戰房間
     private final ConcurrentHashMap<String, GameRoom> activeRooms = new ConcurrentHashMap<>();
+    // 紀錄 SessionId -> 玩家資訊 (RoomId & PlayerId)
+    public static final Map<String, QuizBattleController.UserSessionInfo> sessionMap = new ConcurrentHashMap<>();
 
     private String playerId = "";
     private String subject = "English";
@@ -44,6 +51,8 @@ public class QuizBattleController {
     private String id = "";
     private String question = "";
     private String correctAnswer ="";
+
+
 
     /**
      * 1. 玩家請求配對 (改為傳入 MatchRequest DTO)
@@ -264,5 +273,51 @@ public class QuizBattleController {
             }
         });
 
+    }
+
+    @MessageMapping("/room/{roomId}/join")
+    public void joinRoom(@DestinationVariable String roomId, JoinMessage message, SimpMessageHeaderAccessor headerAccessor) {
+        String sessionId = headerAccessor.getSessionId();
+        // 記錄這組 sessionId 對應的 roomId 與 playerId
+        this.sessionMap.put(sessionId, new UserSessionInfo(roomId, message.getPlayerId()));
+
+        // ... 原有的加入房間邏輯 ...
+    }
+
+
+    @EventListener
+    public void handleWebSocketDisconnectListener(SessionDisconnectEvent event) {
+        String sessionId = event.getSessionId();
+        UserSessionInfo sessionInfo = sessionMap.remove(sessionId);
+
+        if (sessionInfo != null) {
+            String roomId = sessionInfo.getRoomId();
+            String disconnectedPlayerId = sessionInfo.getPlayerId();
+
+            // 封包內容：通知房間內所有人有玩家離開
+            Map<String, Object> leaveNotice = Map.of(
+                    "type", "PLAYER_LEFT",
+                    "message", "對手已離開對戰或連線中斷",
+                    "leftPlayerId", disconnectedPlayerId
+            );
+
+            // 廣播給該房間內留著的對手
+            messagingTemplate.convertAndSend("/topic/room/" + roomId, Optional.of(leaveNotice));
+            System.out.println("玩家 " + disconnectedPlayerId + " 斷線，已廣播退場通知至房間: " + roomId);
+        }
+    }
+
+    // 內部類別用於記錄 Session 綁定資訊
+    public static class UserSessionInfo {
+        private final String roomId;
+        private final String playerId;
+
+        public UserSessionInfo(String roomId, String playerId) {
+            this.roomId = roomId;
+            this.playerId = playerId;
+        }
+
+        public String getRoomId() { return roomId; }
+        public String getPlayerId() { return playerId; }
     }
 }
