@@ -149,7 +149,7 @@ public class QuizBattleController {
             throw new RuntimeException("初始化 Firestore 失敗: " + e.getMessage(), e);
         }
         // 1. 發起非同步查詢，獲取 ApiFuture
-        ApiFuture<QuerySnapshot> future = db.collection("English_Quiz").get();
+        ApiFuture<QuerySnapshot> future = db.collection(subject+"_Quiz").get();
 
         // 2. 呼叫 .get() 阻塞等待並取得 QuerySnapshot
         QuerySnapshot querySnapshot = future.get();
@@ -180,7 +180,8 @@ public class QuizBattleController {
         String fullQuestion = question;
 
         // 1. 擷取選項
-        Pattern optionPattern = Pattern.compile("\\([A-D]\\)\\s*[^\\(\\)]+");
+        //Pattern optionPattern = Pattern.compile("\\([A-D]\\)\\s*[^\\(\\)]+");
+        Pattern optionPattern = Pattern.compile("\\([A-D][^\\(]*");
         Matcher matcher = optionPattern.matcher(fullQuestion);
 
         List<String> options = new ArrayList<>();
