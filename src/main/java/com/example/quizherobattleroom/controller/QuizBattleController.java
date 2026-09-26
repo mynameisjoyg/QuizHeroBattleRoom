@@ -20,8 +20,10 @@ import org.springframework.messaging.simp.SimpMessageHeaderAccessor;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Controller;
 
+import java.io.ByteArrayInputStream;
 import java.io.FileInputStream;
 import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 import java.security.Principal;
 import java.util.*;
 import java.util.concurrent.*;
@@ -130,7 +132,18 @@ public class QuizBattleController {
         Firestore db;
         try {
             // 1. 載入憑證檔 (請確保路徑正確，或改用 ClassLoader 讀取 resources)
-            InputStream serviceAccount = new FileInputStream("src/main/resources/serviceAccountKey.json");
+            //InputStream serviceAccount = new FileInputStream("src/main/resources/serviceAccountKey.json");
+            InputStream serviceAccount;
+            // 1. 優先嘗試從 Render 環境變數讀取 JSON 字串
+            String envConfig = System.getenv("FIREBASE_CONFIG_JSON");
+
+            if (envConfig != null && !envConfig.trim().isEmpty()) {
+                // 將環境變數中的 JSON 字串轉為 InputStream
+                serviceAccount = new ByteArrayInputStream(envConfig.getBytes(StandardCharsets.UTF_8));
+            } else {
+                // 2. 若環境變數不存在，才嘗試從本機檔案讀取（供本地開發測試）
+                serviceAccount = new FileInputStream("src/main/resources/serviceAccountKey.json");
+            }
 
             // 2. 設定 FirebaseOptions
             FirebaseOptions options = FirebaseOptions.builder()
