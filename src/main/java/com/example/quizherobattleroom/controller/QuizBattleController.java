@@ -259,7 +259,8 @@ public class QuizBattleController {
                     "winnerId", playerId,
                     "isCorrect", isCorrect,
                     "reactionTimeMs", reactionTimeMs,
-                    "serverTime", receiveTimestamp
+                    "serverTime", receiveTimestamp,
+                    "correctAnswer", correctAnswer
             );
 
             // 廣播搶答結果給房間內所有人
