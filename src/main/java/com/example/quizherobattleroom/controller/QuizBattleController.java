@@ -6,6 +6,7 @@ import com.example.quizherobattleroom.model.AnswerMessage;
 import com.example.quizherobattleroom.model.GameRoom;
 import com.google.api.core.ApiFuture;
 import com.google.auth.oauth2.GoogleCredentials;
+import com.google.cloud.firestore.DocumentSnapshot;
 import com.google.cloud.firestore.Firestore;
 import com.google.cloud.firestore.QueryDocumentSnapshot;
 import com.google.cloud.firestore.QuerySnapshot;
@@ -161,8 +162,39 @@ public class QuizBattleController {
         } catch (Exception e) {
             throw new RuntimeException("初始化 Firestore 失敗: " + e.getMessage(), e);
         }
+
+        //先取得Subject內的問題起始ID以及問題總數
+        int QuestionFirstId = 1;
+        int QuestionCount = 1;
+        ApiFuture<DocumentSnapshot> metaFuture = db.collection("MetaData").document(subject).get();
+        DocumentSnapshot document = metaFuture.get();
+
+        // 2. 確認文件存在
+        if (document.exists()) {
+            // 取出欄位數值（Firestore 中的整數預設儲存為 Long）
+            Long firstIdLong = document.getLong("Volume"+volume+"Chapter"+chapter+"QuestionFirstId");
+            Long countLong = document.getLong("Volume"+volume+"Chapter"+chapter+"QuestionCount");
+
+            // 轉成 int 並處理 null 預設值
+            QuestionFirstId = (firstIdLong != null) ? firstIdLong.intValue() : 0;
+            QuestionCount = (countLong != null) ? countLong.intValue() : 0;
+
+            System.out.println("QuestionFirstId: " + QuestionFirstId);
+            System.out.println("QuestionCount: " + QuestionCount);
+
+        } else {
+            System.out.println("找不到 Document 名稱為 English 的 MetaData 資料");
+        }
+        int randomQuestionId = ThreadLocalRandom.current().nextInt(1, QuestionCount + 1) + QuestionFirstId;
+
+
+
+
         // 1. 發起非同步查詢，獲取 ApiFuture
-        ApiFuture<QuerySnapshot> future = db.collection(subject+"_Quiz").get();
+        ApiFuture<QuerySnapshot> future = db.collection(subject+"_Quiz")
+                .whereEqualTo("id", randomQuestionId)
+                .limit(1)
+                .get();
 
         // 2. 呼叫 .get() 阻塞等待並取得 QuerySnapshot
         QuerySnapshot querySnapshot = future.get();
