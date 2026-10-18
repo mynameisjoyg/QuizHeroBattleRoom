@@ -34,10 +34,10 @@ import java.util.regex.Pattern;
 import org.springframework.context.event.EventListener;
 import org.springframework.web.socket.messaging.SessionDisconnectEvent;
 
-@Controller
+@Controller//告訴 Spring IoC 容器，這個 Class 是一個控制層元件，Spring 啟動時會自動掃描並建立實例。用法：放在類別名稱上方。
 public class QuizBattleController {
 
-    @Autowired
+    @Autowired //自動對接/注入所需物件，免去手動寫 new。用法：放在屬性（Field）或建構子（Constructor）上。
     private SimpMessagingTemplate messagingTemplate;
 
     // 簡易配對等待隊列
@@ -60,8 +60,8 @@ public class QuizBattleController {
     /**
      * 1. 玩家請求配對 (改為傳入 MatchRequest DTO)
      */
-    @MessageMapping("/matchmaking")
-    public void processMatchmaking(@Payload MatchRequest request) {
+    @MessageMapping("/matchmaking")//意思：類似 HTTP 中的 @PostMapping，但它是專門用在 WebSocket (STOMP) 協議，用於對應前端傳送訊息的路由。
+    public void processMatchmaking(@Payload MatchRequest request) {//主要意思：用來標註方法的參數，告訴 Spring：「請把前端 WebSocket / STOMP 傳過來的訊息主體（Payload / Body），解析並繫結到這個參數上。」
         System.out.println("JOYG: processMatchmaking");
         // 從前端傳送的 JSON 讀取 playerId (防呆處理：若為 null 則自動給予預設 ID)
         playerId = (request != null && request.getPlayerId() != null && !request.getPlayerId().isBlank())
@@ -191,7 +191,8 @@ public class QuizBattleController {
 
 
         // 1. 發起非同步查詢，獲取 ApiFuture
-        ApiFuture<QuerySnapshot> future = db.collection(subject+"_Quiz")
+        //ApiFuture<QuerySnapshot> future = db.collection(subject+"_Quiz")
+        ApiFuture<QuerySnapshot> future = db.collection(subject)
                 .whereEqualTo("id", randomQuestionId)
                 .limit(1)
                 .get();
@@ -322,7 +323,7 @@ public class QuizBattleController {
     }
 
     @MessageMapping("/room/{roomId}/join")
-    public void joinRoom(@DestinationVariable String roomId, JoinMessage message, SimpMessageHeaderAccessor headerAccessor) {
+    public void joinRoom(@DestinationVariable String roomId, JoinMessage message, SimpMessageHeaderAccessor headerAccessor) {////意思：類似 HTTP 中的 @PathVariable，用來抓取 @MessageMapping 網址路徑中的動態參數。
         String sessionId = headerAccessor.getSessionId();
         // 記錄這組 sessionId 對應的 roomId 與 playerId
         this.sessionMap.put(sessionId, new UserSessionInfo(roomId, message.getPlayerId()));
@@ -331,7 +332,7 @@ public class QuizBattleController {
     }
 
 
-    @EventListener
+    @EventListener//意思：Spring 的事件機制。當系統觸發特定事件時，標註此註解的方法會被自動執行。用法：在對戰系統中，常用於監聽 WebSocket 用戶離線/斷線事件 或 自訂的遊戲階段事件。
     public void handleWebSocketDisconnectListener(SessionDisconnectEvent event) {
         String sessionId = event.getSessionId();
         UserSessionInfo sessionInfo = sessionMap.remove(sessionId);
